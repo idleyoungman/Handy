@@ -5,8 +5,15 @@ edition = "2021"
 description = "Handy Linux GTK4 port"
 license = "MIT"
 
+[[bin]]
+name = "handy-gtk"
+path = "src/main.rs"
+
 [dependencies]
 dirs = "5"
+zbus = { version = "4", default-features = false, features = ["tokio", "p2p"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "time"] }
+clap = { version = "4", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3"
