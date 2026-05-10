@@ -91,7 +91,8 @@ fn main() {
 
     // ── Run Relm4 / GTK main loop ─────────────────────────────────────────────
     // RelmApp::new initialises GTK and libadwaita; run() blocks until the app exits.
-    let app = relm4::RelmApp::new("computer.handy.Handy");
+    // Use a distinct app ID to avoid GTK claiming our IPC D-Bus name.
+    let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
     app.run::<ui::app::App>((ctx, event_rx, settings));
 }
 
