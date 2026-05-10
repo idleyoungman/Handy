@@ -7,6 +7,7 @@ mod cli;
 mod config;
 mod ipc;
 mod shortcut;
+mod tray;
 
 use app_context::AppContext;
 use backend_event::BackendEvent;
@@ -58,6 +59,18 @@ async fn main() {
         eprintln!("handy-gtk: shortcut manager failed to start: {e}");
         eprintln!("handy-gtk: global shortcuts will not be available");
     }
+
+    // ── Start system tray icon ────────────────────────────────────────────────
+    let _tray = match tray::spawn(ctx.clone()).await {
+        Ok(handle) => {
+            tracing::info!("System tray icon registered");
+            Some(handle)
+        }
+        Err(e) => {
+            tracing::warn!("System tray unavailable: {e}");
+            None
+        }
+    };
 
     // ── Main event loop ───────────────────────────────────────────────────────
     // TODO: replace with GTK/Relm4 main loop.  For now this loop keeps the
