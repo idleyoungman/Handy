@@ -1,4 +1,4 @@
-use gtk::prelude::*;
+use relm4::adw::prelude::*;
 use relm4::prelude::*;
 use tokio::sync::mpsc;
 
@@ -7,10 +7,12 @@ use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
 
 use super::overlay::{Overlay, OverlayInput, OverlayStatus};
+use super::settings_window::SettingsWindow;
 
 pub struct App {
     _ctx: AppContext,
     overlay: Controller<Overlay>,
+    settings_window: Controller<SettingsWindow>,
 }
 
 #[derive(Debug)]
@@ -25,7 +27,7 @@ impl SimpleComponent for App {
     type Output = ();
 
     view! {
-        gtk::ApplicationWindow {
+        adw::ApplicationWindow {
             set_default_width: 1,
             set_default_height: 1,
             set_decorated: false,
@@ -42,8 +44,8 @@ impl SimpleComponent for App {
             .launch(settings.overlay_position)
             .detach();
 
-        // Bridge: forward Tokio BackendEvents into this Relm4 component as
-        // AppInput messages.  Runs on the background Tokio runtime.
+        let settings_window = SettingsWindow::builder().launch(()).detach();
+
         let sender_clone = sender.clone();
         tokio::spawn(async move {
             while let Some(event) = event_rx.recv().await {
@@ -51,7 +53,11 @@ impl SimpleComponent for App {
             }
         });
 
-        let model = App { _ctx: ctx, overlay };
+        let model = App {
+            _ctx: ctx,
+            overlay,
+            settings_window,
+        };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
@@ -93,7 +99,7 @@ impl App {
                 self.overlay.emit(OverlayInput::MicLevel(level));
             }
             BackendEvent::FocusWindow => {
-                tracing::info!("FocusWindow: settings window not yet implemented");
+                self.settings_window.widget().present();
             }
             _ => {}
         }

@@ -20,7 +20,8 @@ zbus = { version = "4", default-features = false, features = ["tokio", "p2p"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "time"] }
 clap = { version = "4", features = ["derive"] }
 gtk4 = "0.11"
-relm4 = "0.11"
+libadwaita = { version = "0.9", features = ["v1_9"] }
+relm4 = { version = "0.11", features = ["libadwaita", "gnome_50"] }
 gtk4-layer-shell = "0.8"
 
 [dev-dependencies]
