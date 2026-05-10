@@ -1,3 +1,6 @@
+// TODO: remove once all scaffolding modules are wired up to the UI
+#![allow(dead_code)]
+
 use clap::Parser;
 
 mod app_context;
