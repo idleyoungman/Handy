@@ -114,9 +114,11 @@ impl SimpleComponent for Overlay {
         let widgets = view_output!();
 
         let levels_for_draw = Rc::clone(&mic_levels);
-        widgets.drawing_area.set_draw_func(move |_, cr, width, height| {
-            draw_bars(cr, width, height, &levels_for_draw);
-        });
+        widgets
+            .drawing_area
+            .set_draw_func(move |_, cr, width, height| {
+                draw_bars(cr, width, height, &levels_for_draw);
+            });
 
         // Store a clone of the realized DrawingArea widget so update() can
         // call queue_draw() on mic-level events without going through widgets.
@@ -150,12 +152,7 @@ impl SimpleComponent for Overlay {
     }
 }
 
-fn draw_bars(
-    cr: &gtk::cairo::Context,
-    width: i32,
-    height: i32,
-    levels: &[Cell<f32>; NUM_BARS],
-) {
+fn draw_bars(cr: &gtk::cairo::Context, width: i32, height: i32, levels: &[Cell<f32>; NUM_BARS]) {
     let w = width as f64;
     let h = height as f64;
     let bar_w = w / NUM_BARS as f64;

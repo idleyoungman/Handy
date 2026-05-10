@@ -9,6 +9,7 @@ mod backend_event;
 mod cli;
 mod config;
 mod ipc;
+mod managers;
 mod shortcut;
 mod tray;
 mod ui;
@@ -17,6 +18,8 @@ use app_context::AppContext;
 use backend_event::BackendEvent;
 use cli::CliArgs;
 use ipc::IpcAction;
+use managers::history::HistoryManager;
+use std::sync::Arc;
 
 fn main() {
     let args = CliArgs::parse();
@@ -80,6 +83,18 @@ fn main() {
         }
     };
 
+    // ── Initialize history manager ────────────────────────────────────────────
+    let history_manager = match HistoryManager::new(ctx.clone()) {
+        Ok(m) => {
+            tracing::info!("History manager initialized");
+            Arc::new(m)
+        }
+        Err(e) => {
+            eprintln!("handy-gtk: failed to initialize history manager: {e}");
+            std::process::exit(1);
+        }
+    };
+
     // ── Start system tray icon ────────────────────────────────────────────────
     let _tray = match rt.block_on(tray::spawn(ctx.clone())) {
         Ok(h) => {
@@ -96,7 +111,7 @@ fn main() {
     // RelmApp::new initialises GTK and libadwaita; run() blocks until the app exits.
     // Use a distinct app ID to avoid GTK claiming our IPC D-Bus name.
     let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
-    app.run::<ui::app::App>((ctx, event_rx, settings));
+    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager));
 }
 
 async fn ipc_dispatch_loop(mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>, ctx: AppContext) {

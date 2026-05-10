@@ -11,9 +11,13 @@ pub enum BackendEvent {
     RecordingStarted,
     RecordingStopped,
     TranscriptionStarted,
-    TranscriptionCompleted { text: String },
+    TranscriptionCompleted {
+        text: String,
+    },
     PostProcessingStarted,
-    PostProcessingCompleted { text: String },
+    PostProcessingCompleted {
+        text: String,
+    },
 
     // ── Microphone level (0.0 – 1.0) — high frequency ────────────────────────
     MicLevel(f32),
@@ -42,7 +46,7 @@ pub enum BackendEvent {
     },
 
     // ── History ───────────────────────────────────────────────────────────────
-    HistoryUpdated,
+    HistoryUpdated(crate::managers::history::HistoryUpdatePayload),
 
     // ── Errors ────────────────────────────────────────────────────────────────
     PasteError(String),

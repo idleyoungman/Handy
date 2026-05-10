@@ -1,13 +1,15 @@
 use relm4::adw::prelude::*;
 use relm4::prelude::*;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::app_context::AppContext;
 use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
+use crate::managers::history::HistoryManager;
 
 use super::overlay::{Overlay, OverlayInput, OverlayStatus};
-use super::settings_window::SettingsWindow;
+use super::settings_window::{SettingsWindow, SettingsWindowInput};
 
 pub struct App {
     _ctx: AppContext,
@@ -22,7 +24,12 @@ pub enum AppInput {
 
 #[relm4::component(pub)]
 impl SimpleComponent for App {
-    type Init = (AppContext, mpsc::Receiver<BackendEvent>, AppSettings);
+    type Init = (
+        AppContext,
+        mpsc::Receiver<BackendEvent>,
+        AppSettings,
+        Arc<HistoryManager>,
+    );
     type Input = AppInput;
     type Output = ();
 
@@ -36,7 +43,7 @@ impl SimpleComponent for App {
     }
 
     fn init(
-        (ctx, mut event_rx, settings): Self::Init,
+        (ctx, mut event_rx, settings, history_manager): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -44,7 +51,7 @@ impl SimpleComponent for App {
             .launch(settings.overlay_position)
             .detach();
 
-        let settings_window = SettingsWindow::builder().launch(()).detach();
+        let settings_window = SettingsWindow::builder().launch(history_manager).detach();
 
         let sender_clone = sender.clone();
         tokio::spawn(async move {
@@ -100,6 +107,10 @@ impl App {
             }
             BackendEvent::FocusWindow => {
                 self.settings_window.widget().present();
+            }
+            BackendEvent::HistoryUpdated(payload) => {
+                self.settings_window
+                    .emit(SettingsWindowInput::HistoryUpdated(payload));
             }
             _ => {}
         }

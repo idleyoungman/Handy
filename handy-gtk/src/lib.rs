@@ -4,5 +4,6 @@ pub mod backend_event;
 pub mod cli;
 pub mod config;
 pub mod ipc;
+pub mod managers;
 pub mod shortcut;
 pub mod tray;

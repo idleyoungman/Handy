@@ -425,17 +425,15 @@ pub fn config_path() -> Option<PathBuf> {
 /// Returns default settings if the file does not exist.
 /// Returns an error if the file exists but cannot be parsed.
 pub fn load() -> Result<AppSettings, String> {
-    load_from(
-        &config_path().ok_or("Could not determine XDG config directory")?,
-    )
+    load_from(&config_path().ok_or("Could not determine XDG config directory")?)
 }
 
 pub fn load_from(path: &Path) -> Result<AppSettings, String> {
     if !path.exists() {
         return Ok(AppSettings::default());
     }
-    let contents = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read config file: {e}"))?;
+    let contents =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read config file: {e}"))?;
     toml::from_str(&contents).map_err(|e| format!("Failed to parse config file: {e}"))
 }
 
@@ -540,7 +538,12 @@ mod tests {
     #[test]
     fn save_creates_intermediate_dirs() {
         let dir = tempfile::tempdir().unwrap();
-        let nested = dir.path().join("a").join("b").join("c").join(CONFIG_FILENAME);
+        let nested = dir
+            .path()
+            .join("a")
+            .join("b")
+            .join("c")
+            .join(CONFIG_FILENAME);
         save_to(&nested, &AppSettings::default()).expect("save in nested dirs");
         assert!(nested.exists());
     }
@@ -558,7 +561,9 @@ mod tests {
     fn default_bindings_have_three_keys() {
         let settings = AppSettings::default();
         assert!(settings.bindings.contains_key("transcribe"));
-        assert!(settings.bindings.contains_key("transcribe_with_post_process"));
+        assert!(settings
+            .bindings
+            .contains_key("transcribe_with_post_process"));
         assert!(settings.bindings.contains_key("cancel"));
     }
 
