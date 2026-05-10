@@ -11,6 +11,10 @@ path = "src/main.rs"
 
 [dependencies]
 dirs = "5"
+handy-keys = "0.2.4"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
 zbus = { version = "4", default-features = false, features = ["tokio", "p2p"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "time"] }
 clap = { version = "4", features = ["derive"] }
