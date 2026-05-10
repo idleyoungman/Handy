@@ -162,8 +162,12 @@ fn manager_thread(
                 binding_id,
                 response,
             }) => {
-                let result =
-                    do_unregister(&manager, &mut binding_to_id, &mut id_to_binding, &binding_id);
+                let result = do_unregister(
+                    &manager,
+                    &mut binding_to_id,
+                    &mut id_to_binding,
+                    &binding_id,
+                );
                 let _ = response.send(result);
             }
             Ok(ManagerCommand::Shutdown) => break,

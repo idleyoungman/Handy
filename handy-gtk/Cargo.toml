@@ -10,6 +10,8 @@ name = "handy-gtk"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 dirs = "5"
 handy-keys = "0.2.4"
 ksni = "0.3"
@@ -23,6 +25,8 @@ gtk4 = "0.11"
 libadwaita = { version = "0.9", features = ["v1_9"] }
 relm4 = { version = "0.11", features = ["libadwaita", "gnome_50"] }
 gtk4-layer-shell = "0.8"
+rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite_migration = "1"
 
 [dev-dependencies]
 tempfile = "3"

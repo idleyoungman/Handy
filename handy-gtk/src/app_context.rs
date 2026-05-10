@@ -110,13 +110,22 @@ mod tests {
         ctx.emit(BackendEvent::RecordingStopped);
         ctx.emit(BackendEvent::FocusWindow);
 
-        let recv = timeout(Duration::from_secs(1), rx.recv()).await.unwrap().unwrap();
+        let recv = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
         assert!(matches!(recv, BackendEvent::RecordingStarted));
 
-        let recv = timeout(Duration::from_secs(1), rx.recv()).await.unwrap().unwrap();
+        let recv = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
         assert!(matches!(recv, BackendEvent::RecordingStopped));
 
-        let recv = timeout(Duration::from_secs(1), rx.recv()).await.unwrap().unwrap();
+        let recv = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
         assert!(matches!(recv, BackendEvent::FocusWindow));
     }
 

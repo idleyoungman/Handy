@@ -164,7 +164,10 @@ mod tests {
         let (_server, client) = make_p2p_pair(tx).await;
         let proxy = make_proxy(&client).await;
 
-        proxy.toggle_transcription().await.expect("toggle_transcription");
+        proxy
+            .toggle_transcription()
+            .await
+            .expect("toggle_transcription");
         assert_eq!(recv_action(&mut rx).await, IpcAction::ToggleTranscription);
     }
 
@@ -174,7 +177,10 @@ mod tests {
         let (_server, client) = make_p2p_pair(tx).await;
         let proxy = make_proxy(&client).await;
 
-        proxy.toggle_post_process().await.expect("toggle_post_process");
+        proxy
+            .toggle_post_process()
+            .await
+            .expect("toggle_post_process");
         assert_eq!(recv_action(&mut rx).await, IpcAction::TogglePostProcess);
     }
 
