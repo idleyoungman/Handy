@@ -11,6 +11,7 @@ mod cli;
 mod config;
 mod ipc;
 mod managers;
+mod paste;
 mod shortcut;
 mod tray;
 mod ui;
