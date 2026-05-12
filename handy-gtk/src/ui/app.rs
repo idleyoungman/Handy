@@ -29,6 +29,7 @@ impl SimpleComponent for App {
         mpsc::Receiver<BackendEvent>,
         AppSettings,
         Arc<HistoryManager>,
+        bool, // start_hidden
     );
     type Input = AppInput;
     type Output = ();
@@ -43,7 +44,7 @@ impl SimpleComponent for App {
     }
 
     fn init(
-        (ctx, mut event_rx, settings, history_manager): Self::Init,
+        (ctx, mut event_rx, settings, history_manager, start_hidden): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -51,7 +52,13 @@ impl SimpleComponent for App {
             .launch(settings.overlay_position)
             .detach();
 
-        let settings_window = SettingsWindow::builder().launch(history_manager).detach();
+        let settings_window = SettingsWindow::builder()
+            .launch((ctx.clone(), history_manager))
+            .detach();
+
+        if !start_hidden {
+            settings_window.widget().present();
+        }
 
         let sender_clone = sender.clone();
         tokio::spawn(async move {

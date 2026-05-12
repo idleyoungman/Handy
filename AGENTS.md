@@ -2,213 +2,141 @@
 
 This file provides guidance to AI coding assistants working with code in this repository.
 
+This is a Linux-only GTK4 port of [Handy](https://github.com/cjpais/Handy). The GTK port lives in `handy-gtk/`. The original Tauri/React app remains in `src/` and `src-tauri/` but is not the target of active development here.
+
 ## Development Commands
 
 **Prerequisites:**
 
 - [Rust](https://rustup.rs/) (latest stable)
-- [Bun](https://bun.sh/) package manager
+- `libgtk-4-dev`, `libadwaita-1-dev`, `libgtk4-layer-shell-dev` (or distro equivalents)
+- On Arch: `pacman -S gtk4 libadwaita gtk4-layer-shell`
 
-**Core Development:**
+**Core Development (GTK port):**
 
 ```bash
-# Install dependencies
-bun install
+cd handy-gtk
 
-# Run in development mode
-bun run tauri dev
-# If cmake error on macOS:
-CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri dev
+# Build
+cargo build
 
-# Build for production
-bun run tauri build
+# Run
+cargo run
 
-# Frontend only development
-bun run dev        # Start Vite dev server
-bun run build      # Build frontend (TypeScript + Vite)
-bun run preview    # Preview built frontend
+# Run with verbose logging
+cargo run -- --debug
 ```
 
 **Linting and Formatting (run before committing):**
 
 ```bash
-bun run lint              # ESLint for frontend
-bun run lint:fix          # ESLint with auto-fix
-bun run format            # Prettier + cargo fmt
-bun run format:check      # Check formatting without changes
-bun run format:frontend   # Prettier only
-bun run format:backend    # cargo fmt only
+cd handy-gtk
+cargo fmt
+cargo clippy -- -D warnings
+cargo test
 ```
-
-**Model Setup (Required for Development):**
-
-```bash
-mkdir -p src-tauri/resources/models
-curl -o src-tauri/resources/models/silero_vad_v4.onnx https://blob.handy.computer/silero_vad_v4.onnx
-```
-
-For detailed platform-specific build setup, see [BUILD.md](BUILD.md).
 
 ## Architecture Overview
 
-Handy is a cross-platform desktop speech-to-text application built with Tauri 2.x (Rust backend + React/TypeScript frontend).
+The GTK port is a single native binary that replaces Tauri and the React frontend with a GTK4/libadwaita UI built on Relm4, while sharing the same backend logic (audio, VAD, transcription, history).
 
-### Backend Structure (src-tauri/src/)
+### Source Structure (`handy-gtk/src/`)
 
-- `lib.rs` - Main entry point, Tauri setup, manager initialization
-- `managers/` - Core business logic:
-  - `audio.rs` - Audio recording and device management
-  - `model.rs` - Model downloading and management
-  - `transcription.rs` - Speech-to-text processing pipeline
-  - `history.rs` - Transcription history storage
-- `audio_toolkit/` - Low-level audio processing:
-  - `audio/` - Device enumeration, recording, resampling
-  - `vad/` - Voice Activity Detection (Silero VAD)
-- `commands/` - Tauri command handlers for frontend communication
-- `cli.rs` - CLI argument definitions (clap derive)
-- `shortcut.rs` - Global keyboard shortcut handling
-- `settings.rs` - Application settings management
-- `overlay.rs` - Recording overlay window (platform-specific)
-- `signal_handle.rs` - `send_transcription_input()` reusable function
-- `utils.rs` - Platform detection helpers
+**Infrastructure modules:**
 
-### Frontend Structure (src/)
+- `main.rs` — Entry point: Tokio runtime, single-instance check, manager startup, GTK main loop
+- `app_context.rs` — `AppContext` replaces `AppHandle`; holds shared settings and a `BackendEvent` sender
+- `backend_event.rs` — `BackendEvent` enum: all backend-to-UI event variants
+- `config.rs` — TOML settings persistence (`~/.config/handy/config.toml`), debounced writes
+- `ipc.rs` — D-Bus service and client via `zbus`; single-instance detection and remote control
+- `autostart.rs` — XDG autostart `.desktop` file management (`~/.config/autostart/handy.desktop`)
+- `shortcut.rs` — Global keyboard shortcut listener via `handy-keys`
+- `tray.rs` — StatusNotifierItem system tray icon via `ksni`
+- `cli.rs` — CLI argument definitions via `clap`
 
-- `App.tsx` - Main component with onboarding flow
-- `components/` - React UI components:
-  - `settings/` - Settings UI
-  - `model-selector/` - Model management interface
-  - `onboarding/` - First-run experience
-  - `overlay/` - Recording overlay UI
-  - `update-checker/` - App update notifications
-  - `shared/`, `ui/`, `icons/`, `footer/` - Shared components
-- `hooks/useSettings.ts` - Settings state management hook
-- `stores/settingsStore.ts` - Zustand store for settings
-- `bindings.ts` - Auto-generated Tauri type bindings (via tauri-specta)
-- `overlay/` - Recording overlay window entry point
-- `lib/types.ts` - Shared TypeScript type definitions
+**UI modules (`ui/`):**
+
+- `ui/app.rs` — Root Relm4 component; bridges Tokio `BackendEvent` channel to GTK; routes events to child components
+- `ui/overlay.rs` — Floating recording indicator via `gtk4-layer-shell`; mic level visualizer
+- `ui/settings_window.rs` — `adw::Window` settings shell; hides on close rather than quitting
 
 ### Key Architecture Patterns
 
-**Manager Pattern:** Core functionality organized into managers (Audio, Model, Transcription) initialized at startup and managed via Tauri state.
+**Single process, two runtimes.** GTK4 (Relm4) owns the main thread. All backend work runs on a dedicated `tokio::runtime::Runtime` on a background thread. Communication: `relm4::Sender<BackendEvent>` (backend → UI); direct `Arc` manager calls (UI → backend).
 
-**Command-Event Architecture:** Frontend → Backend via Tauri commands; Backend → Frontend via events.
+**`AppContext` as the boundary seam.** All backend modules accept `AppContext` instead of `AppHandle`. Replacing Tauri is entirely expressed by this substitution.
 
-**Pipeline Processing:** Audio → VAD → Whisper/Parakeet → Text output → Clipboard/Paste
+**Settings persistence: debounced TOML.** In-memory `Arc<RwLock<AppSettings>>`, written to `~/.config/handy/config.toml` with a 500 ms debounce.
 
-**State Flow:** Zustand → Tauri Command → Rust State → Persistence (tauri-plugin-store)
+**D-Bus single-instance and IPC.** On startup, the app attempts `Ping()` on `computer.handy.Handy`. If a primary instance responds, the second instance forwards its CLI flags and exits. Otherwise it registers the name and starts normally.
+
+**Wayland-only overlay.** The recording overlay uses `gtk4-layer-shell` exclusively. No X11 fallback.
 
 ### Technology Stack
 
-**Core Libraries:**
-
-- `whisper-rs` - Local Whisper inference with GPU acceleration
-- `cpal` - Cross-platform audio I/O
-- `vad-rs` - Voice Activity Detection
-- `rdev` - Global keyboard shortcuts
-- `rubato` - Audio resampling
-- `rodio` - Audio playback for feedback sounds
+- `relm4` + `libadwaita` — Native GTK4/libadwaita UI
+- `gtk4-layer-shell` — Wayland overlay positioning
+- `ksni` — StatusNotifierItem tray icon (pure Rust)
+- `zbus` — D-Bus IPC for single-instance and remote control
+- `handy-keys` — Global keyboard shortcuts
+- `tokio` — Async runtime for backend managers
+- `tracing` — Structured logging
 
 ### Application Flow
 
-1. **Initialization:** App starts minimized to tray, loads settings, initializes managers
-2. **Model Setup:** First-run downloads preferred Whisper model (Small/Medium/Turbo/Large)
-3. **Recording:** Global shortcut triggers audio recording with VAD filtering
-4. **Processing:** Audio sent to Whisper model for transcription
-5. **Output:** Text pasted to active application via system clipboard
+1. **Startup:** Parse CLI args, check D-Bus for existing instance, load settings, build `AppContext`
+2. **Services:** Register D-Bus IPC service, start shortcut listener, spawn tray icon
+3. **GTK loop:** `RelmApp::new().run::<App>()` — blocks until quit
+4. **Recording:** Global shortcut → `BackendEvent` → managers → transcription → paste
 
 ### Settings System
 
-Settings are stored using Tauri's store plugin with reactive updates:
-
-- Keyboard shortcuts (configurable, supports push-to-talk)
-- Audio devices (microphone/output selection)
-- Model preferences (Small/Medium/Turbo/Large Whisper variants)
-- Audio feedback and translation options
+Settings are stored in `~/.config/handy/config.toml` as TOML. Writes are debounced 500 ms to avoid hammering disk on rapid slider changes. The `AppSettings` struct is the single source of truth; all modules read a cloned snapshot via `ctx.settings()`.
 
 ### Single Instance Architecture
 
-The app enforces single instance behavior — launching when already running brings the settings window to front rather than creating a new process. Remote control flags (`--toggle-transcription`, etc.) work by launching a second instance that sends args to the running instance via `tauri_plugin_single_instance`, then exits.
-
-## Internationalization (i18n)
-
-All user-facing strings must use i18next translations. ESLint enforces this (no hardcoded strings in JSX).
-
-**Adding new text:**
-
-1. Add key to `src/i18n/locales/en/translation.json`
-2. Use in component: `const { t } = useTranslation(); t('key.path')`
-
-**File structure:**
-
-```
-src/i18n/
-├── index.ts           # i18n setup
-├── languages.ts       # Language metadata
-└── locales/
-    ├── en/translation.json  # English (source)
-    ├── de/, es/, fr/, ja/, ru/, zh/, ...
-    └── ...
-```
-
-For translation contribution guidelines, see [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md).
+The well-known D-Bus name `computer.handy.Handy` doubles as the presence check. A second instance calls `Ping()` — success means forward CLI flags via the appropriate method and exit; failure means become the primary instance.
 
 ## Code Style
 
-**Rust:**
-
-- Run `cargo fmt` and `cargo clippy` before committing
-- Handle errors explicitly (avoid unwrap in production)
-- Use descriptive names, add doc comments for public APIs
-
-**TypeScript/React:**
-
-- Strict TypeScript, avoid `any` types
-- Functional components with hooks
-- Tailwind CSS for styling
-- Path aliases: `@/` → `./src/`
+- Run `cargo fmt` and `cargo clippy -- -D warnings` before committing
+- No `unwrap()` in production paths — propagate errors explicitly
+- No comments unless the WHY is non-obvious (hidden constraint, subtle invariant, workaround)
+- No Tauri types (`AppHandle`, `tauri::*`) in the GTK crate
+- User-facing strings are hardcoded English — i18n infrastructure is removed
 
 ## Commit Guidelines
 
-Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
+Use conventional commits with a `gtk-port` scope: `feat(gtk-port):`, `fix(gtk-port):`, `refactor(gtk-port):`, `chore(gtk-port):`
 
 ## CLI Parameters
 
-Handy supports command-line parameters on all platforms for integration with scripts, window managers, and autostart configurations.
+| Flag                     | Description                                                |
+| ------------------------ | ---------------------------------------------------------- |
+| `--toggle-transcription` | Toggle recording on a running instance (via D-Bus)         |
+| `--toggle-post-process`  | Toggle recording with post-processing (via D-Bus)          |
+| `--cancel`               | Cancel in-progress operation on a running instance (D-Bus) |
+| `--start-hidden`         | Launch with tray only — no settings window shown           |
+| `--debug`                | Enable verbose (Trace) logging                             |
 
-**Implementation:** `cli.rs` (definitions), `main.rs` (parsing), `lib.rs` (applying), `signal_handle.rs` (shared logic)
-
-| Flag                     | Description                                                    |
-| ------------------------ | -------------------------------------------------------------- |
-| `--toggle-transcription` | Toggle recording on/off on a running instance                  |
-| `--toggle-post-process`  | Toggle recording with post-processing on/off                   |
-| `--cancel`               | Cancel the current operation on a running instance             |
-| `--start-hidden`         | Launch without showing the main window (tray icon visible)     |
-| `--no-tray`              | Launch without system tray (closing window quits the app)      |
-| `--debug`                | Enable debug mode with verbose (Trace) logging                 |
-
-**Key design decisions:**
-
-- CLI flags are runtime-only overrides — they do NOT modify persisted settings
-- Remote control flags work via `tauri_plugin_single_instance`: second instance sends args, then exits
-- `send_transcription_input()` in `signal_handle.rs` is shared between signal handlers and CLI
-
-## Debug Mode
-
-Access debug features: `Cmd+Shift+D` (macOS) or `Ctrl+Shift+D` (Windows/Linux)
+Remote control flags work by launching a second instance that sends the command via D-Bus and exits immediately.
 
 ## Platform Notes
 
-- **macOS**: Metal acceleration, accessibility permissions required for keyboard shortcuts
-- **Windows**: Vulkan acceleration, code signing
-- **Linux**: OpenBLAS + Vulkan, limited Wayland support, overlay uses GTK layer shell (disable with `HANDY_NO_GTK_LAYER_SHELL=1`)
+This port is **Linux-only**. macOS and Windows code has been removed.
 
-## Troubleshooting
+- Overlay requires a Wayland compositor with the `wlr-layer-shell` protocol
+- System tray requires a StatusNotifierItem-compatible panel (KDE Plasma, GNOME with AppIndicator extension, etc.)
+- Global shortcuts require `/dev/input` access — add your user to the `input` group if shortcuts are not working
 
-See the [Troubleshooting](README.md#troubleshooting) section in README.md.
+## Testing
 
-## Contributing & PR Guidelines
+Tests live in each module alongside the source. The PRD (`docs/prd-gtk-port.md`) identifies which modules are unit-tested:
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow and [PR template](.github/PULL_REQUEST_TEMPLATE.md) when submitting pull requests. For translations, see [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md).
+- `config`, `app_context`, `ipc`, `autostart` — pure logic, tested with `tempfile` and in-process zbus transport
+- `managers/history` — tested against in-memory SQLite
+- UI modules and hardware-dependent managers — not unit-tested
 
-**Note:** Feature freeze is active — bug fixes are top priority. New features require community support via [Discussions](https://github.com/cjpais/Handy/discussions).
+```bash
+cd handy-gtk && cargo test
+```

@@ -2,11 +2,14 @@ use relm4::adw::prelude::*;
 use relm4::prelude::*;
 use std::sync::Arc;
 
+use crate::app_context::AppContext;
 use crate::managers::history::HistoryUpdatePayload;
 
+use super::pages::general::GeneralPage;
 use super::pages::history::{HistoryInput, HistoryPage};
 
 pub struct SettingsWindow {
+    general_page: Controller<GeneralPage>,
     history_page: Controller<HistoryPage>,
 }
 
@@ -17,15 +20,15 @@ pub enum SettingsWindowInput {
 
 #[relm4::component(pub)]
 impl SimpleComponent for SettingsWindow {
-    type Init = Arc<crate::managers::history::HistoryManager>;
+    type Init = (AppContext, Arc<crate::managers::history::HistoryManager>);
     type Input = SettingsWindowInput;
     type Output = ();
 
     view! {
         adw::Window {
             set_title: Some("Handy Settings"),
-            set_default_width: 680,
-            set_default_height: 580,
+            set_default_width: 700,
+            set_default_height: 600,
             set_hide_on_close: true,
 
             adw::ToolbarView {
@@ -33,24 +36,37 @@ impl SimpleComponent for SettingsWindow {
                     #[wrap(Some)]
                     set_title_widget = &adw::WindowTitle {
                         set_title: "Handy Settings",
-                        set_subtitle: "History",
                     },
                 },
 
-                #[wrap(Some)]
-                set_content = model.history_page.widget(),
+                set_content: Some(local_notebook),
             }
         }
     }
 
     fn init(
-        history_manager: Self::Init,
+        (ctx, history_manager): Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let general_page = GeneralPage::builder().launch(ctx).detach();
         let history_page = HistoryPage::builder().launch(history_manager).detach();
 
-        let model = SettingsWindow { history_page };
+        let notebook = gtk::Notebook::new();
+        notebook.append_page(
+            general_page.widget(),
+            Some(&gtk::Label::new(Some("General"))),
+        );
+        notebook.append_page(
+            history_page.widget(),
+            Some(&gtk::Label::new(Some("History"))),
+        );
+
+        let local_notebook = &notebook;
+        let model = SettingsWindow {
+            general_page,
+            history_page,
+        };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
