@@ -8,6 +8,7 @@ use crate::audio_feedback::{self, SoundType};
 use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
 use crate::managers::history::HistoryManager;
+use crate::paste;
 
 use super::overlay::{Overlay, OverlayInput, OverlayStatus};
 use super::settings_window::{SettingsWindow, SettingsWindowInput};
@@ -98,11 +99,19 @@ impl App {
                 self.overlay
                     .emit(OverlayInput::SetStatus(OverlayStatus::Recording));
             }
-            BackendEvent::RecordingStopped
-            | BackendEvent::TranscriptionCompleted { .. }
-            | BackendEvent::PostProcessingCompleted { .. } => {
+            BackendEvent::RecordingStopped => {
                 audio_feedback::play_feedback_sound(&self.ctx, SoundType::Stop);
                 self.overlay.emit(OverlayInput::Hide);
+            }
+            BackendEvent::TranscriptionCompleted { text }
+            | BackendEvent::PostProcessingCompleted { text } => {
+                audio_feedback::play_feedback_sound(&self.ctx, SoundType::Stop);
+                self.overlay.emit(OverlayInput::Hide);
+                let ctx = self.ctx.clone();
+                tokio::spawn(async move { paste::execute(&ctx, text).await });
+            }
+            BackendEvent::PasteError(msg) => {
+                tracing::warn!("Paste error: {msg}");
             }
             BackendEvent::TranscriptionStarted => {
                 self.overlay

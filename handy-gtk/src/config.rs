@@ -124,12 +124,17 @@ pub enum OrtAcceleratorSetting {
     Rocm,
 }
 
+/// Wayland input injection tool for direct typing and key combos.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TypingTool {
+    /// Try wtype first, then ydotool.
     #[default]
-    Enigo,
-    Xdotool,
+    Auto,
+    /// Use wtype (requires zwp_virtual_keyboard_manager_v1).
+    Wtype,
+    /// Use ydotool (requires ydotoold daemon and uinput access).
+    Ydotool,
 }
 
 // ── Sub-structs ───────────────────────────────────────────────────────────────
@@ -295,7 +300,7 @@ impl Default for AppSettings {
             lazy_stream_close: false,
             show_tray_icon: default_show_tray_icon(),
             paste_delay_ms: default_paste_delay_ms(),
-            typing_tool: TypingTool::Enigo,
+            typing_tool: TypingTool::Auto,
             external_script_path: None,
             whisper_accelerator: WhisperAcceleratorSetting::Auto,
             ort_accelerator: OrtAcceleratorSetting::Auto,
