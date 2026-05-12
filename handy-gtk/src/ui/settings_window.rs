@@ -7,10 +7,12 @@ use crate::managers::history::HistoryUpdatePayload;
 
 use super::pages::general::GeneralPage;
 use super::pages::history::{HistoryInput, HistoryPage};
+use super::pages::output::OutputPage;
 
 pub struct SettingsWindow {
     general_page: Controller<GeneralPage>,
     history_page: Controller<HistoryPage>,
+    output_page: Controller<OutputPage>,
 }
 
 #[derive(Debug)]
@@ -49,6 +51,7 @@ impl SimpleComponent for SettingsWindow {
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let output_page = OutputPage::builder().launch(ctx.clone()).detach();
         let general_page = GeneralPage::builder().launch(ctx).detach();
         let history_page = HistoryPage::builder().launch(history_manager).detach();
 
@@ -57,6 +60,7 @@ impl SimpleComponent for SettingsWindow {
             general_page.widget(),
             Some(&gtk::Label::new(Some("General"))),
         );
+        notebook.append_page(output_page.widget(), Some(&gtk::Label::new(Some("Output"))));
         notebook.append_page(
             history_page.widget(),
             Some(&gtk::Label::new(Some("History"))),
@@ -66,6 +70,7 @@ impl SimpleComponent for SettingsWindow {
         let model = SettingsWindow {
             general_page,
             history_page,
+            output_page,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
