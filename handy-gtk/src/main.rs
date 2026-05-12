@@ -4,6 +4,7 @@
 use clap::Parser;
 
 mod app_context;
+mod audio_feedback;
 mod autostart;
 mod backend_event;
 mod cli;

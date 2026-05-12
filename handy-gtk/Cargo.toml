@@ -25,6 +25,7 @@ gtk4 = "0.11"
 libadwaita = { version = "0.9", features = ["v1_9"] }
 relm4 = { version = "0.11", features = ["libadwaita", "gnome_50"] }
 gtk4-layer-shell = "0.8"
+rodio = { version = "0.22", features = ["wav"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 rusqlite_migration = "1"
 
