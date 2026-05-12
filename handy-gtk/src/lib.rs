@@ -1,4 +1,5 @@
 pub mod app_context;
+pub mod audio_feedback;
 pub mod autostart;
 pub mod backend_event;
 pub mod cli;

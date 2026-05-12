@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::app_context::AppContext;
+use crate::audio_feedback::{self, SoundType};
 use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
 use crate::managers::history::HistoryManager;
@@ -12,7 +13,7 @@ use super::overlay::{Overlay, OverlayInput, OverlayStatus};
 use super::settings_window::{SettingsWindow, SettingsWindowInput};
 
 pub struct App {
-    _ctx: AppContext,
+    ctx: AppContext,
     overlay: Controller<Overlay>,
     settings_window: Controller<SettingsWindow>,
 }
@@ -68,7 +69,7 @@ impl SimpleComponent for App {
         });
 
         let model = App {
-            _ctx: ctx,
+            ctx,
             overlay,
             settings_window,
         };
@@ -93,12 +94,14 @@ impl App {
                 self.overlay.emit(OverlayInput::Hide);
             }
             BackendEvent::RecordingStarted => {
+                audio_feedback::play_feedback_sound(&self.ctx, SoundType::Start);
                 self.overlay
                     .emit(OverlayInput::SetStatus(OverlayStatus::Recording));
             }
             BackendEvent::RecordingStopped
             | BackendEvent::TranscriptionCompleted { .. }
             | BackendEvent::PostProcessingCompleted { .. } => {
+                audio_feedback::play_feedback_sound(&self.ctx, SoundType::Stop);
                 self.overlay.emit(OverlayInput::Hide);
             }
             BackendEvent::TranscriptionStarted => {
