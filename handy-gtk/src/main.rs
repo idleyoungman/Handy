@@ -110,8 +110,10 @@ fn main() {
     // ── Run Relm4 / GTK main loop ─────────────────────────────────────────────
     // RelmApp::new initialises GTK and libadwaita; run() blocks until the app exits.
     // Use a distinct app ID to avoid GTK claiming our IPC D-Bus name.
+    let start_hidden = args.start_hidden || settings.start_hidden;
+
     let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
-    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager));
+    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager, start_hidden));
 }
 
 async fn ipc_dispatch_loop(mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>, ctx: AppContext) {
