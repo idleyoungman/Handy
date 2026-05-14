@@ -140,7 +140,14 @@ fn main() {
     let start_hidden = args.start_hidden || settings.start_hidden;
 
     let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
-    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager, model_manager, start_hidden));
+    app.run::<ui::app::App>((
+        ctx,
+        event_rx,
+        settings,
+        history_manager,
+        model_manager,
+        start_hidden,
+    ));
 }
 
 async fn ipc_dispatch_loop(

@@ -94,14 +94,14 @@ impl ModelManager {
         }
 
         let whisper_languages: Vec<String> = vec![
-            "en", "zh", "zh-Hans", "zh-Hant", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr",
-            "pl", "ca", "nl", "ar", "sv", "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms",
-            "cs", "ro", "da", "hu", "ta", "no", "th", "ur", "hr", "bg", "lt", "la", "mi", "ml",
-            "cy", "sk", "te", "fa", "lv", "bn", "sr", "az", "sl", "kn", "et", "mk", "br", "eu",
-            "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw", "gl", "mr", "pa", "si", "km", "sn",
-            "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu", "am", "yi", "lo", "uz", "fo",
-            "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl", "mg", "as", "tt", "haw",
-            "ln", "ha", "ba", "jw", "su", "yue",
+            "en", "zh", "zh-Hans", "zh-Hant", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl",
+            "ca", "nl", "ar", "sv", "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs",
+            "ro", "da", "hu", "ta", "no", "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy",
+            "sk", "te", "fa", "lv", "bn", "sr", "az", "sl", "kn", "et", "mk", "br", "eu", "is",
+            "hy", "ne", "mn", "bs", "kk", "sq", "sw", "gl", "mr", "pa", "si", "km", "sn", "yo",
+            "so", "af", "oc", "ka", "be", "tg", "sd", "gu", "am", "yi", "lo", "uz", "fo", "ht",
+            "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl", "mg", "as", "tt", "haw", "ln",
+            "ha", "ba", "jw", "su", "yue",
         ]
         .into_iter()
         .map(String::from)
@@ -143,9 +143,7 @@ impl ModelManager {
                 name: "Whisper Medium".to_string(),
                 description: "Good accuracy, medium speed.".to_string(),
                 filename: "whisper-medium-q4_1.bin".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/whisper-medium-q4_1.bin".to_string(),
-                ),
+                url: Some("https://blob.handy.computer/whisper-medium-q4_1.bin".to_string()),
                 sha256: Some(
                     "79283fc1f9fe12ca3248543fbd54b73292164d8df5a16e095e2bceeaaabddf57".to_string(),
                 ),
@@ -172,9 +170,7 @@ impl ModelManager {
                 name: "Whisper Turbo".to_string(),
                 description: "Balanced accuracy and speed.".to_string(),
                 filename: "ggml-large-v3-turbo.bin".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/ggml-large-v3-turbo.bin".to_string(),
-                ),
+                url: Some("https://blob.handy.computer/ggml-large-v3-turbo.bin".to_string()),
                 sha256: Some(
                     "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69".to_string(),
                 ),
@@ -201,9 +197,7 @@ impl ModelManager {
                 name: "Whisper Large".to_string(),
                 description: "Best accuracy, but slow.".to_string(),
                 filename: "ggml-large-v3-q5_0.bin".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/ggml-large-v3-q5_0.bin".to_string(),
-                ),
+                url: Some("https://blob.handy.computer/ggml-large-v3-q5_0.bin".to_string()),
                 sha256: Some(
                     "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1".to_string(),
                 ),
@@ -230,9 +224,7 @@ impl ModelManager {
                 name: "Parakeet V2".to_string(),
                 description: "English only. The best model for English speakers.".to_string(),
                 filename: "parakeet-tdt-0.6b-v2-int8".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/parakeet-v2-int8.tar.gz".to_string(),
-                ),
+                url: Some("https://blob.handy.computer/parakeet-v2-int8.tar.gz".to_string()),
                 sha256: Some(
                     "ac9b9429984dd565b25097337a887bb7f0f8ac393573661c651f0e7d31563991".to_string(),
                 ),
@@ -267,9 +259,7 @@ impl ModelManager {
                 name: "Parakeet V3".to_string(),
                 description: "Fast and accurate. Supports 25 European languages.".to_string(),
                 filename: "parakeet-tdt-0.6b-v3-int8".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/parakeet-v3-int8.tar.gz".to_string(),
-                ),
+                url: Some("https://blob.handy.computer/parakeet-v3-int8.tar.gz".to_string()),
                 sha256: Some(
                     "43d37191602727524a7d8c6da0eef11c4ba24320f5b4730f1a2497befc2efa77".to_string(),
                 ),
@@ -476,9 +466,8 @@ impl ModelManager {
             ModelInfo {
                 id: "canary-180m-flash".to_string(),
                 name: "Canary 180M Flash".to_string(),
-                description:
-                    "Very fast. English, German, Spanish, French. Supports translation."
-                        .to_string(),
+                description: "Very fast. English, German, Spanish, French. Supports translation."
+                    .to_string(),
                 filename: "canary-180m-flash".to_string(),
                 url: Some("https://blob.handy.computer/canary-180m-flash.tar.gz".to_string()),
                 sha256: Some(
@@ -513,9 +502,8 @@ impl ModelManager {
             ModelInfo {
                 id: "canary-1b-v2".to_string(),
                 name: "Canary 1B v2".to_string(),
-                description:
-                    "Accurate multilingual. 25 European languages. Supports translation."
-                        .to_string(),
+                description: "Accurate multilingual. 25 European languages. Supports translation."
+                    .to_string(),
                 filename: "canary-1b-v2".to_string(),
                 url: Some("https://blob.handy.computer/canary-1b-v2.tar.gz".to_string()),
                 sha256: Some(
@@ -538,8 +526,8 @@ impl ModelManager {
         );
 
         let cohere_languages: Vec<String> = vec![
-            "en", "fr", "de", "it", "es", "pt", "el", "nl", "pl", "zh", "zh-Hans", "zh-Hant",
-            "ja", "ko", "vi", "ar",
+            "en", "fr", "de", "it", "es", "pt", "el", "nl", "pl", "zh", "zh-Hans", "zh-Hant", "ja",
+            "ko", "vi", "ar",
         ]
         .into_iter()
         .map(String::from)
@@ -591,7 +579,12 @@ impl ModelManager {
     }
 
     pub fn get_available_models(&self) -> Vec<ModelInfo> {
-        self.available_models.lock().unwrap().values().cloned().collect()
+        self.available_models
+            .lock()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn get_model_info(&self, model_id: &str) -> Option<ModelInfo> {
@@ -607,7 +600,10 @@ impl ModelManager {
             return Err(anyhow::anyhow!("Model not downloaded: {}", model_id));
         }
         if info.is_downloading {
-            return Err(anyhow::anyhow!("Model is currently downloading: {}", model_id));
+            return Err(anyhow::anyhow!(
+                "Model is currently downloading: {}",
+                model_id
+            ));
         }
 
         let model_path = self.models_dir.join(&info.filename);
@@ -617,12 +613,18 @@ impl ModelManager {
             if model_path.exists() && model_path.is_dir() && !partial_path.exists() {
                 Ok(model_path)
             } else {
-                Err(anyhow::anyhow!("Complete model directory not found: {}", model_id))
+                Err(anyhow::anyhow!(
+                    "Complete model directory not found: {}",
+                    model_id
+                ))
             }
         } else if model_path.exists() && !partial_path.exists() {
             Ok(model_path)
         } else {
-            Err(anyhow::anyhow!("Complete model file not found: {}", model_id))
+            Err(anyhow::anyhow!(
+                "Complete model file not found: {}",
+                model_id
+            ))
         }
     }
 
@@ -631,9 +633,7 @@ impl ModelManager {
 
         for model in models.values_mut() {
             let model_path = self.models_dir.join(&model.filename);
-            let partial_path = self
-                .models_dir
-                .join(format!("{}.partial", &model.filename));
+            let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
 
             if model.is_directory {
                 let extracting_path = self
@@ -644,10 +644,7 @@ impl ModelManager {
                     extracting.contains(&model.id)
                 };
                 if extracting_path.exists() && !is_extracting {
-                    tracing::warn!(
-                        "Cleaning up interrupted extraction for model: {}",
-                        model.id
-                    );
+                    tracing::warn!("Cleaning up interrupted extraction for model: {}", model.id);
                     let _ = fs::remove_dir_all(&extracting_path);
                 }
                 model.is_downloaded = model_path.exists() && model_path.is_dir();
@@ -680,7 +677,8 @@ impl ModelManager {
                     "Selected model '{}' not in available models, clearing",
                     settings.selected_model
                 );
-                self.ctx.update_settings(|s| s.selected_model = String::new());
+                self.ctx
+                    .update_settings(|s| s.selected_model = String::new());
             } else {
                 return Ok(());
             }
@@ -760,7 +758,10 @@ impl ModelManager {
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let size_mb = path.metadata().map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
+            let size_mb = path
+                .metadata()
+                .map(|m| m.len() / (1024 * 1024))
+                .unwrap_or(0);
 
             available_models.insert(
                 model_id.clone(),
@@ -1212,8 +1213,14 @@ mod tests {
 
         ModelManager::discover_custom_whisper_models(&models_dir, &mut available).unwrap();
 
-        assert!(available.contains_key("my-model"), "custom model should be discovered");
-        assert!(!available.contains_key(".hidden"), "hidden file should be excluded");
+        assert!(
+            available.contains_key("my-model"),
+            "custom model should be discovered"
+        );
+        assert!(
+            !available.contains_key(".hidden"),
+            "hidden file should be excluded"
+        );
         assert_eq!(available["my-model"].is_custom, true);
         assert_eq!(available["my-model"].is_downloaded, true);
     }
@@ -1226,7 +1233,10 @@ mod tests {
 
         let mut available: HashMap<String, ModelInfo> = HashMap::new();
         ModelManager::discover_custom_whisper_models(&models_dir, &mut available).unwrap();
-        assert!(!available.contains_key("dir-model"), "directory should not be discovered");
+        assert!(
+            !available.contains_key("dir-model"),
+            "directory should not be discovered"
+        );
     }
 
     #[test]
@@ -1302,6 +1312,9 @@ mod tests {
         mgr.update_download_status().unwrap();
 
         let models = mgr.available_models.lock().unwrap();
-        assert!(models["small"].is_downloaded, "model file exists, should be marked downloaded");
+        assert!(
+            models["small"].is_downloaded,
+            "model file exists, should be marked downloaded"
+        );
     }
 }
