@@ -13,11 +13,13 @@ pub struct SettingsWindow {
     general_page: Controller<GeneralPage>,
     history_page: Controller<HistoryPage>,
     output_page: Controller<OutputPage>,
+    toast_overlay: adw::ToastOverlay,
 }
 
 #[derive(Debug)]
 pub enum SettingsWindowInput {
     HistoryUpdated(HistoryUpdatePayload),
+    PasteError(String),
 }
 
 #[relm4::component(pub)]
@@ -41,7 +43,7 @@ impl SimpleComponent for SettingsWindow {
                     },
                 },
 
-                set_content: Some(local_notebook),
+                set_content: Some(local_toast_overlay),
             }
         }
     }
@@ -66,11 +68,14 @@ impl SimpleComponent for SettingsWindow {
             Some(&gtk::Label::new(Some("History"))),
         );
 
-        let local_notebook = &notebook;
+        let toast_overlay = adw::ToastOverlay::new();
+        toast_overlay.set_child(Some(&notebook));
+        let local_toast_overlay = &toast_overlay.clone();
         let model = SettingsWindow {
             general_page,
             history_page,
             output_page,
+            toast_overlay,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -80,6 +85,13 @@ impl SimpleComponent for SettingsWindow {
         match msg {
             SettingsWindowInput::HistoryUpdated(payload) => {
                 self.history_page.emit(HistoryInput::Update(payload));
+            }
+            SettingsWindowInput::PasteError(msg) => {
+                let toast = adw::Toast::builder()
+                    .title(format!("Paste failed: {msg}"))
+                    .timeout(5)
+                    .build();
+                self.toast_overlay.add_toast(toast);
             }
         }
     }

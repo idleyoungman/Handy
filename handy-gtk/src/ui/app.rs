@@ -112,6 +112,9 @@ impl App {
             }
             BackendEvent::PasteError(msg) => {
                 tracing::warn!("Paste error: {msg}");
+                self.settings_window.widget().present();
+                self.settings_window
+                    .emit(SettingsWindowInput::PasteError(msg));
             }
             BackendEvent::TranscriptionStarted => {
                 self.overlay
