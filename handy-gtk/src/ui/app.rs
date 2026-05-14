@@ -103,7 +103,6 @@ impl App {
             }
             BackendEvent::RecordingStopped => {
                 audio_feedback::play_feedback_sound(&self.ctx, SoundType::Stop);
-                self.overlay.emit(OverlayInput::Hide);
             }
             BackendEvent::TranscriptionCompleted { text }
             | BackendEvent::PostProcessingCompleted { text } => {

@@ -8,12 +8,14 @@ use crate::managers::model::ModelManager;
 
 use super::pages::general::GeneralPage;
 use super::pages::history::{HistoryInput, HistoryPage};
+use super::pages::input::InputPage;
 use super::pages::models::{ModelsInput, ModelsPage};
 use super::pages::output::OutputPage;
 
 pub struct SettingsWindow {
     general_page: Controller<GeneralPage>,
     history_page: Controller<HistoryPage>,
+    input_page: Controller<InputPage>,
     models_page: Controller<ModelsPage>,
     output_page: Controller<OutputPage>,
     toast_overlay: adw::ToastOverlay,
@@ -74,20 +76,17 @@ impl SimpleComponent for SettingsWindow {
     ) -> ComponentParts<Self> {
         let output_page = OutputPage::builder().launch(ctx.clone()).detach();
         let general_page = GeneralPage::builder().launch(ctx.clone()).detach();
+        let input_page = InputPage::builder().launch(ctx.clone()).detach();
         let history_page = HistoryPage::builder().launch(history_manager).detach();
-        let models_page = ModelsPage::builder()
-            .launch((ctx, model_manager))
-            .detach();
+        let models_page = ModelsPage::builder().launch((ctx, model_manager)).detach();
 
         let notebook = gtk::Notebook::new();
         notebook.append_page(
             general_page.widget(),
             Some(&gtk::Label::new(Some("General"))),
         );
-        notebook.append_page(
-            models_page.widget(),
-            Some(&gtk::Label::new(Some("Models"))),
-        );
+        notebook.append_page(models_page.widget(), Some(&gtk::Label::new(Some("Models"))));
+        notebook.append_page(input_page.widget(), Some(&gtk::Label::new(Some("Input"))));
         notebook.append_page(output_page.widget(), Some(&gtk::Label::new(Some("Output"))));
         notebook.append_page(
             history_page.widget(),
@@ -100,6 +99,7 @@ impl SimpleComponent for SettingsWindow {
         let model = SettingsWindow {
             general_page,
             history_page,
+            input_page,
             models_page,
             output_page,
             toast_overlay,
@@ -134,7 +134,8 @@ impl SimpleComponent for SettingsWindow {
                 });
             }
             SettingsWindowInput::ModelDownloadCompleted(model_id) => {
-                self.models_page.emit(ModelsInput::DownloadCompleted(model_id));
+                self.models_page
+                    .emit(ModelsInput::DownloadCompleted(model_id));
             }
             SettingsWindowInput::ModelDownloadFailed { model_id, error } => {
                 self.models_page

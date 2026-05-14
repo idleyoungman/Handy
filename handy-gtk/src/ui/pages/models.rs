@@ -133,9 +133,7 @@ impl SimpleComponent for ModelsPage {
                 self.rebuild_rows(&sender);
             }
             ModelsInput::DownloadProgress {
-                model_id,
-                progress,
-                ..
+                model_id, progress, ..
             } => {
                 if let Some(m) = self.models.iter_mut().find(|m| m.id == model_id) {
                     m.is_downloading = true;
@@ -154,8 +152,7 @@ impl SimpleComponent for ModelsPage {
                 }
                 // Auto-select if nothing is selected yet.
                 if self.ctx.settings().selected_model.is_empty() {
-                    self.ctx
-                        .update_settings(|s| s.selected_model = model_id);
+                    self.ctx.update_settings(|s| s.selected_model = model_id);
                 }
                 self.rebuild_rows(&sender);
             }
@@ -173,7 +170,8 @@ impl SimpleComponent for ModelsPage {
                 }
                 // Clear selection if the deleted model was selected.
                 if self.ctx.settings().selected_model == model_id {
-                    self.ctx.update_settings(|s| s.selected_model = String::new());
+                    self.ctx
+                        .update_settings(|s| s.selected_model = String::new());
                 }
                 self.rebuild_rows(&sender);
             }
