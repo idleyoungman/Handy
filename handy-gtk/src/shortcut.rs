@@ -3,9 +3,8 @@ use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 
-use crate::app_context::AppContext;
-use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
+use crate::recording_coordinator::RecordingCoordinator;
 
 // ── Manager commands ──────────────────────────────────────────────────────────
 
@@ -24,20 +23,16 @@ enum ManagerCommand {
 
 // ── ShortcutManager ───────────────────────────────────────────────────────────
 
-/// Owns the `HotkeyManager` on a dedicated thread and dispatches shortcut
-/// events as `BackendEvent`s through the given `AppContext`.
-///
-/// The manager thread polls for hotkey events at 10 ms intervals, which is
-/// sufficient for interactive use while keeping CPU usage negligible.
 pub struct ShortcutManager {
     command_tx: Sender<ManagerCommand>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl ShortcutManager {
-    /// Spawns the manager thread and registers all configured shortcuts from
-    /// `settings`.  `ctx` is cloned into the thread for event dispatch.
-    pub fn start(ctx: AppContext, settings: &AppSettings) -> Result<Self, String> {
+    pub fn start(
+        coordinator: RecordingCoordinator,
+        settings: &AppSettings,
+    ) -> Result<Self, String> {
         let (cmd_tx, cmd_rx) = mpsc::channel::<ManagerCommand>();
 
         let bindings_to_register: Vec<(String, String)> = settings
@@ -53,7 +48,7 @@ impl ShortcutManager {
         let thread = thread::Builder::new()
             .name("handy-shortcut".into())
             .spawn(move || {
-                manager_thread(cmd_rx, ctx, bindings_to_register, push_to_talk);
+                manager_thread(cmd_rx, coordinator, bindings_to_register, push_to_talk);
             })
             .map_err(|e| format!("Failed to spawn shortcut thread: {e}"))?;
 
@@ -103,7 +98,7 @@ impl Drop for ShortcutManager {
 
 fn manager_thread(
     cmd_rx: Receiver<ManagerCommand>,
-    ctx: AppContext,
+    coordinator: RecordingCoordinator,
     initial_bindings: Vec<(String, String)>,
     push_to_talk: bool,
 ) {
@@ -120,7 +115,6 @@ fn manager_thread(
     let mut binding_to_id: HashMap<String, HotkeyId> = HashMap::new();
     let mut id_to_binding: HashMap<HotkeyId, String> = HashMap::new();
 
-    // Register initial shortcuts.
     for (binding_id, hotkey_string) in initial_bindings {
         if let Err(e) = do_register(
             &manager,
@@ -134,15 +128,13 @@ fn manager_thread(
     }
 
     loop {
-        // Dispatch any pending hotkey events.
         while let Some(event) = manager.try_recv() {
             if let Some(binding_id) = id_to_binding.get(&event.id) {
                 let is_pressed = event.state == HotkeyState::Pressed;
-                dispatch_shortcut(&ctx, binding_id, is_pressed, push_to_talk);
+                dispatch_shortcut(&coordinator, binding_id, is_pressed, push_to_talk);
             }
         }
 
-        // Process manager commands (10 ms timeout keeps the event loop responsive).
         match cmd_rx.recv_timeout(std::time::Duration::from_millis(10)) {
             Ok(ManagerCommand::Register {
                 binding_id,
@@ -181,36 +173,40 @@ fn manager_thread(
 
 // ── Shortcut dispatch ─────────────────────────────────────────────────────────
 
-fn dispatch_shortcut(ctx: &AppContext, binding_id: &str, is_pressed: bool, push_to_talk: bool) {
+fn dispatch_shortcut(
+    coordinator: &RecordingCoordinator,
+    binding_id: &str,
+    is_pressed: bool,
+    push_to_talk: bool,
+) {
     tracing::debug!("Shortcut: binding={binding_id} pressed={is_pressed}");
 
     match binding_id {
         "transcribe" => {
             if push_to_talk {
                 if is_pressed {
-                    ctx.emit(BackendEvent::RecordingStarted);
+                    coordinator.start_ptt(false);
                 } else {
-                    ctx.emit(BackendEvent::RecordingStopped);
+                    coordinator.stop_ptt();
                 }
             } else if is_pressed {
-                // Toggle mode: the coordinator decides whether to start or stop.
-                ctx.emit(BackendEvent::RecordingStarted);
+                coordinator.toggle();
             }
         }
         "transcribe_with_post_process" => {
             if push_to_talk {
                 if is_pressed {
-                    ctx.emit(BackendEvent::PostProcessingStarted);
+                    coordinator.start_ptt(true);
                 } else {
-                    ctx.emit(BackendEvent::RecordingStopped);
+                    coordinator.stop_ptt();
                 }
             } else if is_pressed {
-                ctx.emit(BackendEvent::PostProcessingStarted);
+                coordinator.toggle_with_post_process();
             }
         }
         "cancel" => {
             if is_pressed {
-                ctx.emit(BackendEvent::RecordingStopped);
+                coordinator.cancel();
             }
         }
         other => {
