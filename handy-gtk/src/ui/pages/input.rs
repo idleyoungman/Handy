@@ -4,8 +4,19 @@ use relm4::prelude::*;
 
 use crate::app_context::AppContext;
 
+/// Extracts a human-readable card name from an ALSA device string.
+/// `sysdefault:CARD=C930e` → `Some("C930e")`
+/// `front:CARD=PCH,DEV=0` → `Some("PCH")`
+/// `pulse` → `None`
+fn alsa_card_name(device_name: &str) -> Option<&str> {
+    let card_start = device_name.find("CARD=")? + 5;
+    let rest = &device_name[card_start..];
+    let end = rest.find([',', ':']).unwrap_or(rest.len());
+    Some(&rest[..end])
+}
+
 /// Enumerates available audio input device names using cpal.
-/// Returns a list starting with "System default" followed by discovered devices.
+/// Returns a list starting with "System default" followed by deduplicated physical devices.
 fn enumerate_input_devices() -> Vec<String> {
     let mut names = vec!["System default".to_string()];
     let host = cpal::default_host();
@@ -13,7 +24,14 @@ fn enumerate_input_devices() -> Vec<String> {
         Ok(devices) => {
             for device in devices {
                 match device.name() {
-                    Ok(name) => names.push(name),
+                    Ok(raw) => {
+                        if let Some(card) = alsa_card_name(&raw) {
+                            let label = card.to_string();
+                            if !names.contains(&label) {
+                                names.push(label);
+                            }
+                        }
+                    }
                     Err(e) => tracing::warn!("Could not get input device name: {e}"),
                 }
             }
