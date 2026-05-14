@@ -6,5 +6,7 @@ pub mod cli;
 pub mod config;
 pub mod ipc;
 pub mod managers;
+pub mod paste;
+pub mod recording_coordinator;
 pub mod shortcut;
 pub mod tray;

@@ -30,6 +30,7 @@ dist-ssr
 
 /target/
 recording_*
+!recording_*.rs
 .crush/
 
 # Playwright

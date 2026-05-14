@@ -12,6 +12,7 @@ mod config;
 mod ipc;
 mod managers;
 mod paste;
+mod recording_coordinator;
 mod shortcut;
 mod tray;
 mod ui;
@@ -21,6 +22,7 @@ use backend_event::BackendEvent;
 use cli::CliArgs;
 use ipc::IpcAction;
 use managers::history::HistoryManager;
+use recording_coordinator::RecordingCoordinator;
 use std::sync::Arc;
 
 fn main() {
@@ -64,6 +66,9 @@ fn main() {
     let config_path = config::config_path().expect("XDG config dir must be available");
     let ctx = AppContext::new(settings.clone(), event_tx, config_path);
 
+    // ── Build RecordingCoordinator ────────────────────────────────────────────
+    let coordinator = RecordingCoordinator::new(ctx.clone());
+
     // ── Register D-Bus IPC service ────────────────────────────────────────────
     let (_conn, ipc_rx) = rt
         .block_on(ipc::register_service())
@@ -71,12 +76,12 @@ fn main() {
 
     // Route IPC actions on the background runtime.
     {
-        let ctx = ctx.clone();
-        rt.spawn(ipc_dispatch_loop(ipc_rx, ctx));
+        let coord = coordinator.clone();
+        rt.spawn(ipc_dispatch_loop(ipc_rx, coord));
     }
 
     // ── Start global shortcut listener ────────────────────────────────────────
-    let _shortcut = match shortcut::ShortcutManager::start(ctx.clone(), &settings) {
+    let _shortcut = match shortcut::ShortcutManager::start(coordinator.clone(), &settings) {
         Ok(m) => Some(m),
         Err(e) => {
             eprintln!("handy-gtk: shortcut manager failed to start: {e}");
@@ -118,24 +123,27 @@ fn main() {
     app.run::<ui::app::App>((ctx, event_rx, settings, history_manager, start_hidden));
 }
 
-async fn ipc_dispatch_loop(mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>, ctx: AppContext) {
+async fn ipc_dispatch_loop(
+    mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>,
+    coordinator: RecordingCoordinator,
+) {
     while let Some(action) = ipc_rx.recv().await {
         match action {
             IpcAction::FocusWindow => {
                 tracing::info!("ipc: FocusWindow");
-                ctx.emit(BackendEvent::FocusWindow);
+                coordinator.ctx().emit(BackendEvent::FocusWindow);
             }
             IpcAction::ToggleTranscription => {
                 tracing::info!("ipc: ToggleTranscription");
-                ctx.emit(BackendEvent::RecordingStarted);
+                coordinator.toggle();
             }
             IpcAction::TogglePostProcess => {
                 tracing::info!("ipc: TogglePostProcess");
-                ctx.emit(BackendEvent::PostProcessingStarted);
+                coordinator.toggle_with_post_process();
             }
             IpcAction::Cancel => {
                 tracing::info!("ipc: Cancel");
-                ctx.emit(BackendEvent::RecordingStopped);
+                coordinator.cancel();
             }
         }
     }
