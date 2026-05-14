@@ -13,11 +13,17 @@ path = "src/main.rs"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 dirs = "5"
+flate2 = "1"
+futures-util = "0.3"
 handy-keys = "0.2.4"
 ksni = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+sha2 = "0.10"
+tar = "0.4"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zbus = { version = "4", default-features = false, features = ["tokio", "p2p"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "time"] }
 clap = { version = "4", features = ["derive"] }
