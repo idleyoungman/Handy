@@ -8,6 +8,7 @@ use crate::audio_feedback::{self, SoundType};
 use crate::backend_event::BackendEvent;
 use crate::config::AppSettings;
 use crate::managers::history::HistoryManager;
+use crate::managers::model::ModelManager;
 use crate::paste;
 
 use super::overlay::{Overlay, OverlayInput, OverlayStatus};
@@ -31,6 +32,7 @@ impl SimpleComponent for App {
         mpsc::Receiver<BackendEvent>,
         AppSettings,
         Arc<HistoryManager>,
+        Arc<ModelManager>,
         bool, // start_hidden
     );
     type Input = AppInput;
@@ -46,7 +48,7 @@ impl SimpleComponent for App {
     }
 
     fn init(
-        (ctx, mut event_rx, settings, history_manager, start_hidden): Self::Init,
+        (ctx, mut event_rx, settings, history_manager, model_manager, start_hidden): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -55,7 +57,7 @@ impl SimpleComponent for App {
             .detach();
 
         let settings_window = SettingsWindow::builder()
-            .launch((ctx.clone(), history_manager))
+            .launch((ctx.clone(), history_manager, model_manager))
             .detach();
 
         if !start_hidden {
@@ -133,6 +135,32 @@ impl App {
             BackendEvent::HistoryUpdated(payload) => {
                 self.settings_window
                     .emit(SettingsWindowInput::HistoryUpdated(payload));
+            }
+            BackendEvent::ModelDownloadProgress {
+                model_id,
+                progress,
+                speed_bps,
+                eta_secs,
+            } => {
+                self.settings_window
+                    .emit(SettingsWindowInput::ModelDownloadProgress {
+                        model_id,
+                        progress,
+                        speed_bps,
+                        eta_secs,
+                    });
+            }
+            BackendEvent::ModelDownloadCompleted { model_id } => {
+                self.settings_window
+                    .emit(SettingsWindowInput::ModelDownloadCompleted(model_id));
+            }
+            BackendEvent::ModelDownloadFailed { model_id, error } => {
+                self.settings_window
+                    .emit(SettingsWindowInput::ModelDownloadFailed { model_id, error });
+            }
+            BackendEvent::ModelDeleted { model_id } => {
+                self.settings_window
+                    .emit(SettingsWindowInput::ModelDeleted(model_id));
             }
             _ => {}
         }

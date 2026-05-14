@@ -22,11 +22,19 @@ use backend_event::BackendEvent;
 use cli::CliArgs;
 use ipc::IpcAction;
 use managers::history::HistoryManager;
+use managers::model::ModelManager;
 use recording_coordinator::RecordingCoordinator;
 use std::sync::Arc;
 
 fn main() {
     let args = CliArgs::parse();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
 
     // ── Background Tokio runtime ──────────────────────────────────────────────
     // GTK must own the main thread; Tokio runs on background threads.
@@ -102,6 +110,18 @@ fn main() {
         }
     };
 
+    // ── Initialize model manager ──────────────────────────────────────────────
+    let model_manager = match ModelManager::new(ctx.clone()) {
+        Ok(m) => {
+            tracing::info!("Model manager initialized");
+            m
+        }
+        Err(e) => {
+            eprintln!("handy-gtk: failed to initialize model manager: {e}");
+            std::process::exit(1);
+        }
+    };
+
     // ── Start system tray icon ────────────────────────────────────────────────
     let _tray = match rt.block_on(tray::spawn(ctx.clone())) {
         Ok(h) => {
@@ -120,7 +140,7 @@ fn main() {
     let start_hidden = args.start_hidden || settings.start_hidden;
 
     let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
-    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager, start_hidden));
+    app.run::<ui::app::App>((ctx, event_rx, settings, history_manager, model_manager, start_hidden));
 }
 
 async fn ipc_dispatch_loop(
