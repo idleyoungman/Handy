@@ -11,6 +11,7 @@ pub enum IpcAction {
     ToggleTranscription,
     TogglePostProcess,
     Cancel,
+    UnloadModel,
 }
 
 struct HandyService {
@@ -38,6 +39,10 @@ impl HandyService {
     async fn cancel(&self) {
         let _ = self.tx.send(IpcAction::Cancel).await;
     }
+
+    async fn unload_model(&self) {
+        let _ = self.tx.send(IpcAction::UnloadModel).await;
+    }
 }
 
 #[proxy(
@@ -51,6 +56,8 @@ trait Handy {
     async fn toggle_transcription(&self) -> zbus::Result<()>;
     async fn toggle_post_process(&self) -> zbus::Result<()>;
     async fn cancel(&self) -> zbus::Result<()>;
+
+    async fn unload_model(&self) -> zbus::Result<()>;
 }
 
 /// Registers the D-Bus well-known name and starts serving the IPC interface.

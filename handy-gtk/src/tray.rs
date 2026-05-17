@@ -47,6 +47,13 @@ impl Tray for HandyTray {
                 }),
                 ..Default::default()
             }),
+            MenuItem::Standard(StandardItem {
+                label: "Unload Model".into(),
+                activate: Box::new(|this: &mut HandyTray| {
+                    this.ctx.emit(BackendEvent::UnloadModel);
+                }),
+                ..Default::default()
+            }),
             MenuItem::Separator,
             MenuItem::Standard(StandardItem {
                 label: "Quit".into(),

@@ -25,6 +25,11 @@ pub struct SettingsWindow {
 pub enum SettingsWindowInput {
     HistoryUpdated(HistoryUpdatePayload),
     PasteError(String),
+    ModelStateChanged {
+        model_id: String,
+        loaded: bool,
+    },
+    UnloadModel,
     ModelDownloadProgress {
         model_id: String,
         progress: f32,
@@ -120,6 +125,10 @@ impl SimpleComponent for SettingsWindow {
                     .build();
                 self.toast_overlay.add_toast(toast);
             }
+            SettingsWindowInput::ModelStateChanged { model_id, loaded } => {
+                self.models_page
+                    .emit(ModelsInput::ModelStateChanged { model_id, loaded });
+            }
             SettingsWindowInput::ModelDownloadProgress {
                 model_id,
                 progress,
@@ -143,6 +152,9 @@ impl SimpleComponent for SettingsWindow {
             }
             SettingsWindowInput::ModelDeleted(model_id) => {
                 self.models_page.emit(ModelsInput::ModelDeleted(model_id));
+            }
+            SettingsWindowInput::UnloadModel => {
+                self.models_page.emit(ModelsInput::Unload);
             }
         }
     }

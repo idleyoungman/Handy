@@ -44,6 +44,7 @@ pub enum BackendEvent {
     ModelDeleted {
         model_id: String,
     },
+    UnloadModel,
 
     // ── History ───────────────────────────────────────────────────────────────
     HistoryUpdated(crate::managers::history::HistoryUpdatePayload),

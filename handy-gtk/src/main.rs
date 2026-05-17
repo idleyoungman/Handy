@@ -82,12 +82,6 @@ fn main() {
         .block_on(ipc::register_service())
         .expect("failed to register D-Bus IPC service");
 
-    // Route IPC actions on the background runtime.
-    {
-        let coord = coordinator.clone();
-        rt.spawn(ipc_dispatch_loop(ipc_rx, coord));
-    }
-
     // ── Start global shortcut listener ────────────────────────────────────────
     let _shortcut = match shortcut::ShortcutManager::start(coordinator.clone(), &settings) {
         Ok(m) => Some(m),
@@ -122,7 +116,14 @@ fn main() {
         }
     };
 
-    // ── Start system tray icon ────────────────────────────────────────────────
+    // Route IPC actions on the background runtime.
+    {
+        let coord = coordinator.clone();
+        let mm = model_manager.clone();
+        rt.spawn(ipc_dispatch_loop(ipc_rx, coord, mm));
+    }
+
+    // ── Start system tray icon ───────────────────────────────────────────────────────
     let _tray = match rt.block_on(tray::spawn(ctx.clone())) {
         Ok(h) => {
             tracing::info!("System tray icon registered");
@@ -153,6 +154,7 @@ fn main() {
 async fn ipc_dispatch_loop(
     mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>,
     coordinator: RecordingCoordinator,
+    model_manager: Arc<ModelManager>,
 ) {
     while let Some(action) = ipc_rx.recv().await {
         match action {
@@ -171,6 +173,12 @@ async fn ipc_dispatch_loop(
             IpcAction::Cancel => {
                 tracing::info!("ipc: Cancel");
                 coordinator.cancel();
+            }
+            IpcAction::UnloadModel => {
+                tracing::info!("ipc: UnloadModel");
+                if let Err(e) = model_manager.unload_model() {
+                    tracing::warn!("Failed to unload model via IPC: {}", e);
+                }
             }
         }
     }

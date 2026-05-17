@@ -161,6 +161,13 @@ impl App {
                 self.settings_window
                     .emit(SettingsWindowInput::ModelDeleted(model_id));
             }
+            BackendEvent::ModelStateChanged { model_id, loaded } => {
+                self.settings_window
+                    .emit(SettingsWindowInput::ModelStateChanged { model_id, loaded });
+            }
+            BackendEvent::UnloadModel => {
+                self.settings_window.emit(SettingsWindowInput::UnloadModel);
+            }
             _ => {}
         }
     }

@@ -80,6 +80,9 @@ pub struct ModelManager {
     available_models: Mutex<HashMap<String, ModelInfo>>,
     cancel_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     extracting_models: Arc<Mutex<HashSet<String>>>,
+    /// ID of the model currently loaded in memory (for inference). This is
+    /// independent of `is_downloaded` which tracks disk state.
+    loaded_model_id: Mutex<Option<String>>,
 }
 
 impl ModelManager {
@@ -570,6 +573,7 @@ impl ModelManager {
             available_models: Mutex::new(available_models),
             cancel_flags: Arc::new(Mutex::new(HashMap::new())),
             extracting_models: Arc::new(Mutex::new(HashSet::new())),
+            loaded_model_id: Mutex::new(None),
         });
 
         manager.update_download_status()?;
@@ -607,7 +611,7 @@ impl ModelManager {
         }
 
         let model_path = self.models_dir.join(&info.filename);
-        let partial_path = self.models_dir.join(format!("{}.partial", &info.filename));
+        let partial_path = self.models_dir.join(format!("{}.partial", info.filename));
 
         if info.is_directory {
             if model_path.exists() && model_path.is_dir() && !partial_path.exists() {
@@ -633,12 +637,12 @@ impl ModelManager {
 
         for model in models.values_mut() {
             let model_path = self.models_dir.join(&model.filename);
-            let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+            let partial_path = self.models_dir.join(format!("{}.partial", model.filename));
 
             if model.is_directory {
                 let extracting_path = self
                     .models_dir
-                    .join(format!("{}.extracting", &model.filename));
+                    .join(format!("{}.extracting", model.filename));
                 let is_extracting = {
                     let extracting = self.extracting_models.lock().unwrap();
                     extracting.contains(&model.id)
@@ -855,7 +859,7 @@ impl ModelManager {
         let model_path = self.models_dir.join(&model_info.filename);
         let partial_path = self
             .models_dir
-            .join(format!("{}.partial", &model_info.filename));
+            .join(format!("{}.partial", model_info.filename));
 
         if model_path.exists() {
             if partial_path.exists() {
@@ -1034,7 +1038,7 @@ impl ModelManager {
 
             let temp_extract_dir = self
                 .models_dir
-                .join(format!("{}.extracting", &model_info.filename));
+                .join(format!("{}.extracting", model_info.filename));
             let final_model_dir = self.models_dir.join(&model_info.filename);
 
             if temp_extract_dir.exists() {
@@ -1112,7 +1116,7 @@ impl ModelManager {
         let model_path = self.models_dir.join(&model_info.filename);
         let partial_path = self
             .models_dir
-            .join(format!("{}.partial", &model_info.filename));
+            .join(format!("{}.partial", model_info.filename));
 
         let mut deleted_something = false;
 
@@ -1143,6 +1147,92 @@ impl ModelManager {
 
         self.ctx.emit(BackendEvent::ModelDeleted {
             model_id: model_id.to_string(),
+        });
+
+        Ok(())
+    }
+
+    /// Returns true when a model is currently loaded in memory for inference.
+    pub fn is_model_loaded(&self) -> bool {
+        self.loaded_model_id
+            .lock()
+            .map(|g| g.is_some())
+            .unwrap_or(false)
+    }
+
+    /// Returns the ID of the currently loaded model, if any.
+    pub fn get_loaded_model_id(&self) -> Option<String> {
+        self.loaded_model_id
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or(None)
+    }
+
+    /// Marks a model as loaded in memory. This is called by the transcription
+    /// backend after it finishes loading model weights. The UI uses this to
+    /// enable the "Unload" button.
+    pub fn load_model(&self, model_id: &str) -> Result<()> {
+        // Verify the model exists and is downloaded before marking as loaded.
+        let info = self
+            .get_model_info(model_id)
+            .ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        if !info.is_downloaded {
+            return Err(anyhow::anyhow!(
+                "Model '{}' is not downloaded; cannot load into memory",
+                model_id
+            ));
+        }
+
+        let mut guard = self
+            .loaded_model_id
+            .lock()
+            .map_err(|e| anyhow::anyhow!("loaded_model_id lock poisoned: {}", e))?;
+
+        let prev = guard.replace(model_id.to_string());
+
+        drop(guard);
+
+        tracing::info!(
+            "Model '{}' marked as loaded in memory{}",
+            model_id,
+            if prev.is_some() {
+                " (replacing previous)"
+            } else {
+                ""
+            }
+        );
+
+        self.ctx.emit(BackendEvent::ModelStateChanged {
+            model_id: model_id.to_string(),
+            loaded: true,
+        });
+
+        Ok(())
+    }
+
+    /// Unloads the currently loaded model from memory, freeing GPU/RAM.
+    ///
+    /// This only clears the in-memory tracking flag. In a full implementation,
+    /// the transcription backend would drop its engine handle to release
+    /// resources. The model remains downloaded on disk.
+    pub fn unload_model(&self) -> Result<()> {
+        let mut guard = self
+            .loaded_model_id
+            .lock()
+            .map_err(|e| anyhow::anyhow!("loaded_model_id lock poisoned: {}", e))?;
+
+        let prev = guard.take();
+
+        drop(guard);
+
+        let prev_id = prev.ok_or_else(|| anyhow::anyhow!("No model is currently loaded"))?;
+
+        tracing::info!("Model '{}' unloaded from memory", prev_id);
+
+        self.ctx.emit(BackendEvent::ModelStateChanged {
+            model_id: prev_id,
+            loaded: false,
         });
 
         Ok(())
@@ -1307,6 +1397,7 @@ mod tests {
             available_models: Mutex::new(available),
             cancel_flags: Arc::new(Mutex::new(HashMap::new())),
             extracting_models: Arc::new(Mutex::new(HashSet::new())),
+            loaded_model_id: Mutex::new(None),
         };
 
         mgr.update_download_status().unwrap();

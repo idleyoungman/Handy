@@ -10,6 +10,7 @@ pub struct ModelsPage {
     model_manager: Arc<ModelManager>,
     models: Vec<ModelInfo>,
     list_box: gtk::ListBox,
+    loaded_model_id: String,
 }
 
 #[derive(Debug)]
@@ -18,6 +19,11 @@ pub enum ModelsInput {
     CancelDownload(String),
     Delete(String),
     Select(String),
+    Unload,
+    ModelStateChanged {
+        model_id: String,
+        loaded: bool,
+    },
     DownloadProgress {
         model_id: String,
         progress: f32,
@@ -85,8 +91,9 @@ impl SimpleComponent for ModelsPage {
         list_box.add_css_class("boxed-list");
 
         let selected = ctx.settings().selected_model.clone();
+        let loaded = model_manager.get_loaded_model_id();
         for info in &models {
-            list_box.append(&build_model_row(info, &selected, &sender));
+            list_box.append(&build_model_row(info, &selected, &loaded, &sender));
         }
 
         let model = ModelsPage {
@@ -94,6 +101,7 @@ impl SimpleComponent for ModelsPage {
             model_manager,
             models,
             list_box: list_box.clone(),
+            loaded_model_id: String::new(),
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -130,6 +138,19 @@ impl SimpleComponent for ModelsPage {
             }
             ModelsInput::Select(model_id) => {
                 self.ctx.update_settings(|s| s.selected_model = model_id);
+                self.rebuild_rows(&sender);
+            }
+            ModelsInput::Unload => {
+                if let Err(e) = self.model_manager.unload_model() {
+                    tracing::warn!("Failed to unload model: {}", e);
+                }
+            }
+            ModelsInput::ModelStateChanged { model_id, loaded } => {
+                if loaded {
+                    self.loaded_model_id = model_id;
+                } else if self.loaded_model_id == model_id {
+                    self.loaded_model_id.clear();
+                }
                 self.rebuild_rows(&sender);
             }
             ModelsInput::DownloadProgress {
@@ -185,9 +206,10 @@ impl ModelsPage {
             self.list_box.remove(&child);
         }
         let selected = self.ctx.settings().selected_model.clone();
+        let loaded = Some(self.loaded_model_id.clone());
         for info in &self.models {
             self.list_box
-                .append(&build_model_row(info, &selected, sender));
+                .append(&build_model_row(info, &selected, &loaded, sender));
         }
     }
 }
@@ -195,6 +217,7 @@ impl ModelsPage {
 fn build_model_row(
     info: &ModelInfo,
     selected_model: &str,
+    loaded_model_id: &Option<String>,
     sender: &ComponentSender<ModelsPage>,
 ) -> adw::ActionRow {
     let row = adw::ActionRow::builder()
@@ -223,7 +246,20 @@ fn build_model_row(
         row.add_suffix(&progress_bar);
         row.add_suffix(&cancel_btn);
     } else if info.is_downloaded {
-        if selected_model == info.id {
+        // Show Unload button for the model currently loaded in memory
+        if loaded_model_id.as_deref() == Some(&info.id) {
+            let unload_btn = gtk::Button::builder()
+                .label("Unload")
+                .valign(gtk::Align::Center)
+                .css_classes(vec!["destructive-action".to_string()])
+                .tooltip_text("Unload model from memory")
+                .build();
+            let s = sender.clone();
+            unload_btn.connect_clicked(move |_| {
+                s.input(ModelsInput::Unload);
+            });
+            row.add_suffix(&unload_btn);
+        } else if selected_model == info.id {
             let check = gtk::Image::builder()
                 .icon_name("emblem-ok-symbolic")
                 .valign(gtk::Align::Center)
