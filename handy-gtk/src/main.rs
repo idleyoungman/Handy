@@ -5,6 +5,7 @@ use clap::Parser;
 
 mod app_context;
 mod audio_feedback;
+mod audio_toolkit;
 mod autostart;
 mod backend_event;
 mod cli;
@@ -21,8 +22,11 @@ use app_context::AppContext;
 use backend_event::BackendEvent;
 use cli::CliArgs;
 use ipc::IpcAction;
+use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
+use managers::pipeline::RecordingPipeline;
+use managers::transcription::TranscriptionManager;
 use recording_coordinator::RecordingCoordinator;
 use std::sync::Arc;
 
@@ -74,24 +78,6 @@ fn main() {
     let config_path = config::config_path().expect("XDG config dir must be available");
     let ctx = AppContext::new(settings.clone(), event_tx, config_path);
 
-    // ── Build RecordingCoordinator ────────────────────────────────────────────
-    let coordinator = RecordingCoordinator::new(ctx.clone());
-
-    // ── Register D-Bus IPC service ────────────────────────────────────────────
-    let (_conn, ipc_rx) = rt
-        .block_on(ipc::register_service())
-        .expect("failed to register D-Bus IPC service");
-
-    // ── Start global shortcut listener ────────────────────────────────────────
-    let _shortcut = match shortcut::ShortcutManager::start(coordinator.clone(), &settings) {
-        Ok(m) => Some(m),
-        Err(e) => {
-            eprintln!("handy-gtk: shortcut manager failed to start: {e}");
-            eprintln!("handy-gtk: global shortcuts will not be available");
-            None
-        }
-    };
-
     // ── Initialize history manager ────────────────────────────────────────────
     let history_manager = match HistoryManager::new(ctx.clone()) {
         Ok(m) => {
@@ -116,11 +102,65 @@ fn main() {
         }
     };
 
+    // ── Initialize audio recording manager ───────────────────────────────────
+    let audio_manager = match AudioRecordingManager::new(ctx.clone()) {
+        Ok(m) => {
+            tracing::info!("Audio recording manager initialized");
+            Arc::new(m)
+        }
+        Err(e) => {
+            tracing::warn!("Audio recording manager failed to initialize: {e}");
+            tracing::warn!("Recording will not be available");
+            // Continue without audio rather than crashing — user may not have a mic
+            Arc::new(
+                AudioRecordingManager::new(ctx.clone())
+                    .unwrap_or_else(|_| panic!("failed to create fallback audio manager")),
+            )
+        }
+    };
+
+    // ── Initialize transcription manager ─────────────────────────────────────
+    let transcription_manager = match TranscriptionManager::new(ctx.clone(), model_manager.clone())
+    {
+        Ok(m) => {
+            tracing::info!("Transcription manager initialized");
+            Arc::new(m)
+        }
+        Err(e) => {
+            eprintln!("handy-gtk: failed to initialize transcription manager: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    // ── Build RecordingCoordinator + Pipeline ─────────────────────────────────
+    let coordinator = RecordingCoordinator::new(ctx.clone());
+    let pipeline = RecordingPipeline::new(
+        coordinator.clone(),
+        Arc::clone(&audio_manager),
+        Arc::clone(&transcription_manager),
+    );
+
+    // ── Register D-Bus IPC service ────────────────────────────────────────────
+    let (_conn, ipc_rx) = rt
+        .block_on(ipc::register_service())
+        .expect("failed to register D-Bus IPC service");
+
+    // ── Start global shortcut listener ────────────────────────────────────────
+    let _shortcut = match shortcut::ShortcutManager::start(pipeline.clone(), &settings) {
+        Ok(m) => Some(m),
+        Err(e) => {
+            eprintln!("handy-gtk: shortcut manager failed to start: {e}");
+            eprintln!("handy-gtk: global shortcuts will not be available");
+            None
+        }
+    };
+
     // Route IPC actions on the background runtime.
     {
-        let coord = coordinator.clone();
+        let p = pipeline.clone();
         let mm = model_manager.clone();
-        rt.spawn(ipc_dispatch_loop(ipc_rx, coord, mm));
+        let tm = transcription_manager.clone();
+        rt.spawn(ipc_dispatch_loop(ipc_rx, p, mm, tm));
     }
 
     // ── Start system tray icon ───────────────────────────────────────────────────────
@@ -136,8 +176,6 @@ fn main() {
     };
 
     // ── Run Relm4 / GTK main loop ─────────────────────────────────────────────
-    // RelmApp::new initialises GTK and libadwaita; run() blocks until the app exits.
-    // Use a distinct app ID to avoid GTK claiming our IPC D-Bus name.
     let start_hidden = args.start_hidden || settings.start_hidden;
 
     let app = relm4::RelmApp::new("computer.handy.Handy.Gtk");
@@ -153,31 +191,35 @@ fn main() {
 
 async fn ipc_dispatch_loop(
     mut ipc_rx: tokio::sync::mpsc::Receiver<IpcAction>,
-    coordinator: RecordingCoordinator,
+    pipeline: RecordingPipeline,
     model_manager: Arc<ModelManager>,
+    transcription_manager: Arc<TranscriptionManager>,
 ) {
     while let Some(action) = ipc_rx.recv().await {
         match action {
             IpcAction::FocusWindow => {
                 tracing::info!("ipc: FocusWindow");
-                coordinator.ctx().emit(BackendEvent::FocusWindow);
+                pipeline.coordinator().ctx().emit(BackendEvent::FocusWindow);
             }
             IpcAction::ToggleTranscription => {
                 tracing::info!("ipc: ToggleTranscription");
-                coordinator.toggle();
+                pipeline.toggle();
             }
             IpcAction::TogglePostProcess => {
                 tracing::info!("ipc: TogglePostProcess");
-                coordinator.toggle_with_post_process();
+                pipeline.toggle_with_post_process();
             }
             IpcAction::Cancel => {
                 tracing::info!("ipc: Cancel");
-                coordinator.cancel();
+                pipeline.cancel();
             }
             IpcAction::UnloadModel => {
                 tracing::info!("ipc: UnloadModel");
+                if let Err(e) = transcription_manager.unload_model() {
+                    tracing::warn!("Failed to unload model via IPC (transcription): {e}");
+                }
                 if let Err(e) = model_manager.unload_model() {
-                    tracing::warn!("Failed to unload model via IPC: {}", e);
+                    tracing::warn!("Failed to unload model via IPC (model manager): {e}");
                 }
             }
         }
