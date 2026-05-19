@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 
 use crate::config::AppSettings;
-use crate::recording_coordinator::RecordingCoordinator;
+use crate::managers::pipeline::RecordingPipeline;
 
 // ── Manager commands ──────────────────────────────────────────────────────────
 
@@ -29,10 +29,7 @@ pub struct ShortcutManager {
 }
 
 impl ShortcutManager {
-    pub fn start(
-        coordinator: RecordingCoordinator,
-        settings: &AppSettings,
-    ) -> Result<Self, String> {
+    pub fn start(coordinator: RecordingPipeline, settings: &AppSettings) -> Result<Self, String> {
         let (cmd_tx, cmd_rx) = mpsc::channel::<ManagerCommand>();
 
         let bindings_to_register: Vec<(String, String)> = settings
@@ -98,7 +95,7 @@ impl Drop for ShortcutManager {
 
 fn manager_thread(
     cmd_rx: Receiver<ManagerCommand>,
-    coordinator: RecordingCoordinator,
+    coordinator: RecordingPipeline,
     initial_bindings: Vec<(String, String)>,
     push_to_talk: bool,
 ) {
@@ -174,7 +171,7 @@ fn manager_thread(
 // ── Shortcut dispatch ─────────────────────────────────────────────────────────
 
 fn dispatch_shortcut(
-    coordinator: &RecordingCoordinator,
+    pipeline: &RecordingPipeline,
     binding_id: &str,
     is_pressed: bool,
     push_to_talk: bool,
@@ -185,28 +182,28 @@ fn dispatch_shortcut(
         "transcribe" => {
             if push_to_talk {
                 if is_pressed {
-                    coordinator.start_ptt(false);
+                    pipeline.start_ptt(false);
                 } else {
-                    coordinator.stop_ptt();
+                    pipeline.stop_ptt();
                 }
             } else if is_pressed {
-                coordinator.toggle();
+                pipeline.toggle();
             }
         }
         "transcribe_with_post_process" => {
             if push_to_talk {
                 if is_pressed {
-                    coordinator.start_ptt(true);
+                    pipeline.start_ptt(true);
                 } else {
-                    coordinator.stop_ptt();
+                    pipeline.stop_ptt();
                 }
             } else if is_pressed {
-                coordinator.toggle_with_post_process();
+                pipeline.toggle_with_post_process();
             }
         }
         "cancel" => {
             if is_pressed {
-                coordinator.cancel();
+                pipeline.cancel();
             }
         }
         other => {

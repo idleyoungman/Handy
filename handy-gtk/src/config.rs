@@ -48,10 +48,23 @@ pub enum OverlayPosition {
 pub enum ModelUnloadTimeout {
     #[default]
     Never,
+    Immediately,
     FiveMinutes,
     TenMinutes,
     ThirtyMinutes,
     OneHour,
+}
+
+impl ModelUnloadTimeout {
+    pub fn to_seconds(self) -> Option<u64> {
+        match self {
+            ModelUnloadTimeout::Never | ModelUnloadTimeout::Immediately => None,
+            ModelUnloadTimeout::FiveMinutes => Some(300),
+            ModelUnloadTimeout::TenMinutes => Some(600),
+            ModelUnloadTimeout::ThirtyMinutes => Some(1800),
+            ModelUnloadTimeout::OneHour => Some(3600),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
